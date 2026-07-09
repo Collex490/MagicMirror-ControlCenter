@@ -1,19 +1,19 @@
 # MagicMirror ControlCenter
 
-Kleine Smartphone-Fernbedienung fuer einen bestehenden MagicMirror auf einem Raspberry Pi.
+Kleine Smartphone-Fernbedienung für einen bestehenden MagicMirror auf einem Raspberry Pi.
 
-Die Weboberflaeche laeuft im Heimnetz auf Port `3001` und ist fuer iPhone, Android oder normale Browser gedacht.
+Die Weboberfläche läuft im Heimnetz auf Port `3001` und ist für iPhone, Android oder normale Browser gedacht.
 
 ## Funktionen
 
-- Smartphone-Weboberflaeche im dunklen Design
-- Buttons fuer vorherige Seite, naechste Seite und direkte Seitenwahl
-- Buttons fuer Carousel pausieren und starten
-- Button fuer MagicMirror-Neustart per PM2
-- Button fuer Raspberry-Pi-Neustart per `sudo reboot`
-- Seiten werden ueber `config/pages.json` gepflegt
+- Smartphone-Weboberfläche im dunklen Design
+- Buttons für vorherige Seite, nächste Seite und direkte Seitenwahl
+- Buttons für Carousel pausieren und starten
+- Button für MagicMirror-Neustart per PM2
+- Button für Raspberry-Pi-Neustart per `sudo reboot`
+- Seiten werden über `config/pages.json` gepflegt
 - Keine Display-An/Aus-Funktion
-- Vorbereitet fuer spaeteren PIN-Schutz
+- Vorbereitet für späteren PIN-Schutz
 
 ## Projektstruktur
 
@@ -23,6 +23,9 @@ MagicMirror-ControlCenter/
   package.json
   config/
     pages.json
+  magicmirror-module/
+    MMM-ControlCenterBridge/
+      MMM-ControlCenterBridge.js
   public/
     index.html
     style.css
@@ -39,7 +42,7 @@ git clone https://github.com/DEIN-BENUTZERNAME/MagicMirror-ControlCenter.git
 cd MagicMirror-ControlCenter
 ```
 
-### 2. Node-Abhaengigkeiten Installieren
+### 2. Node-Abhängigkeiten Installieren
 
 ```bash
 npm install
@@ -51,7 +54,7 @@ npm install
 npm start
 ```
 
-Danach im Smartphone-Browser oeffnen:
+Danach im Smartphone-Browser öffnen:
 
 ```text
 http://magicmirror.local:3001
@@ -86,7 +89,7 @@ Falls PM2 nach einem Raspberry-Pi-Neustart automatisch starten soll:
 pm2 startup
 ```
 
-PM2 zeigt danach einen weiteren Befehl an. Diesen einmal kopieren und ausfuehren.
+PM2 zeigt danach einen weiteren Befehl an. Diesen einmal kopieren und ausführen.
 
 ## Updates Vom GitHub-Repository Holen
 
@@ -97,9 +100,59 @@ npm install
 pm2 restart MagicMirror-ControlCenter
 ```
 
+## MagicMirror Bridge-Modul Installieren
+
+Damit die iPhone-Buttons MMM-Carousel wirklich steuern, muss das kleine Bridge-Modul in MagicMirror installiert werden.
+
+Vom ControlCenter-Ordner aus:
+
+```bash
+cd ~/MagicMirror-ControlCenter
+cp -r magicmirror-module/MMM-ControlCenterBridge ~/MagicMirror/modules/
+```
+
+Danach die MagicMirror-Config öffnen:
+
+```bash
+nano ~/MagicMirror/config/config.js
+```
+
+In die `modules`-Liste diesen Eintrag einfügen:
+
+```js
+{
+  module: "MMM-ControlCenterBridge",
+  config: {
+    controlCenterUrl: "http://localhost:3001",
+    pollInterval: 300,
+    debug: false
+  }
+},
+```
+
+Wichtig:
+
+- Der Eintrag muss innerhalb des Arrays `modules: [ ... ]` stehen.
+- Das Modul ist unsichtbar und zeigt nichts auf dem Spiegel an.
+- Es liest Befehle vom ControlCenter und sendet intern MagicMirror-Notifications an MMM-Carousel.
+
+Danach MagicMirror neu starten:
+
+```bash
+pm2 restart MagicMirror
+```
+
+Falls dein MagicMirror-Prozess anders heißt:
+
+```bash
+pm2 list
+```
+
+und dann den passenden Namen verwenden.
+
 ## Seiten Anpassen
 
-Die Buttons fuer direkte Seitenwahl stehen in:
+Die Buttons für direkte Seitenwahl stehen in:
 
 ```text
 config/pages.json
@@ -121,13 +174,13 @@ Beispiel:
 ```
 
 - `label` ist der Text auf dem Smartphone.
-- `carouselTarget` ist der spaetere technische Zielwert fuer MMM-Carousel.
+- `carouselTarget` ist der spätere technische Zielwert für MMM-Carousel.
 
-Die Datei wird bei jeder Anfrage neu gelesen. Kleine Aenderungen an den Seiten brauchen deshalb keinen Neustart des ControlCenters.
+Die Datei wird bei jeder Anfrage neu gelesen. Kleine Änderungen an den Seiten brauchen deshalb keinen Neustart des ControlCenters.
 
 ## MMM-Carousel Anbindung
 
-Die API-Endpunkte sind bereits vorbereitet:
+Die API-Endpunkte sind vorbereitet und senden über `MMM-ControlCenterBridge` echte MMM-Carousel-Notifications:
 
 - `POST /api/page/next`
 - `POST /api/page/prev`
@@ -137,24 +190,18 @@ Die API-Endpunkte sind bereits vorbereitet:
 - `POST /api/system/restart-mirror`
 - `POST /api/system/reboot-pi`
 
-Aktuell ist die echte MMM-Carousel-Anbindung in `server.js` bewusst als Platzhalter markiert:
+Verwendete MMM-Carousel-Notifications:
 
-```js
-function sendCarouselCommand(action, payload = {}) {
-  console.log("[Carousel placeholder]", action, payload);
-}
+```text
+CAROUSEL_NEXT
+CAROUSEL_PREVIOUS
+CAROUSEL_GOTO
+CAROUSEL_PLAYPAUSE
 ```
 
-Dort wird spaeter die konkrete Verbindung zu deinem MMM-Carousel-Modul eingetragen.
+Hinweis zu Pause und Start:
 
-Um herauszufinden, welche Steuerbefehle dein installiertes MMM-Carousel versteht, auf dem Raspberry Pi ausfuehren:
-
-```bash
-cd ~/MagicMirror/modules/MMM-Carousel
-grep -R "notificationReceived\|socketNotificationReceived\|CAROUSEL\|NEXT\|PREV\|PAUSE\|START" -n .
-```
-
-Die Ausgabe davon ist hilfreich, um die echte Steuerung exakt einzubauen.
+MMM-Carousel stellt in der gefundenen Version `CAROUSEL_PLAYPAUSE` als Umschalter bereit. Das bedeutet: Der Button schaltet zwischen laufend und pausiert um. Wenn der aktuelle Zustand nicht bekannt ist, kann ein zweiter Druck nötig sein.
 
 ## MagicMirror Neustart
 
@@ -164,13 +211,13 @@ Der Button `MagicMirror neu starten` nutzt:
 pm2 restart MagicMirror
 ```
 
-Pruefe den Namen deines MagicMirror-Prozesses mit:
+Prüfe den Namen deines MagicMirror-Prozesses mit:
 
 ```bash
 pm2 list
 ```
 
-Falls der Prozess anders heisst, passe diese Zeile in `server.js` an:
+Falls der Prozess anders heißt, passe diese Zeile in `server.js` an:
 
 ```js
 runCommand("pm2 restart MagicMirror", res, "MagicMirror-Neustart angefordert.");
@@ -192,7 +239,7 @@ Mit:
 sudo visudo
 ```
 
-kann bei Bedarf eine enge Regel ergaenzt werden. Beispiel fuer den Benutzer `pi`:
+kann bei Bedarf eine enge Regel ergänzt werden. Beispiel für den Benutzer `pi`:
 
 ```text
 pi ALL=NOPASSWD: /sbin/reboot, /usr/sbin/reboot
@@ -202,25 +249,25 @@ Je nach Raspberry-Pi-OS liegt `reboot` unter `/sbin/reboot` oder `/usr/sbin/rebo
 
 ## Sicherheit
 
-Das ControlCenter ist fuer das Heimnetz gedacht und enthaelt noch keinen Login.
+Das ControlCenter ist für das Heimnetz gedacht und enthält noch keinen Login.
 
-Der Code ist aber so vorbereitet, dass spaeter einfach ein PIN-Schutz als Express-Middleware vor die API-Routen gesetzt werden kann.
+Der Code ist aber so vorbereitet, dass später einfach ein PIN-Schutz als Express-Middleware vor die API-Routen gesetzt werden kann.
 
 Empfehlung:
 
 - Port `3001` nicht ins Internet freigeben
 - Nur im eigenen WLAN nutzen
-- Spaeter PIN-Schutz ergaenzen, wenn mehrere Personen im Netzwerk sind
+- Später PIN-Schutz ergänzen, wenn mehrere Personen im Netzwerk sind
 
 ## iPhone Homescreen
 
 Auf dem iPhone:
 
-1. Safari oeffnen
+1. Safari öffnen
 2. `http://magicmirror.local:3001` aufrufen
 3. Teilen-Symbol antippen
-4. `Zum Home-Bildschirm` auswaehlen
+4. `Zum Home-Bildschirm` auswählen
 5. Namen vergeben, z. B. `MagicMirror`
-6. Hinzufuegen
+6. Hinzufügen
 
 Danach kann das ControlCenter wie eine kleine App gestartet werden.

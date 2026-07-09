@@ -6,19 +6,33 @@ const { exec } = require("child_process");
 const app = express();
 const PORT = process.env.PORT || 3001;
 const PAGES_CONFIG_PATH = path.join(__dirname, "config", "pages.json");
+const commandQueue = [];
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
+app.use((req, res, next) => {
+  // Erlaubt dem MagicMirror-Frontend, die lokale Bridge-API auf Port 3001 zu lesen.
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
+  res.header("Access-Control-Allow-Headers", "Content-Type");
+
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(204);
+  }
+
+  next();
+});
+
 /*
- * Erweiterungsidee fuer spaeter:
+ * Erweiterungsidee für später:
  * Vor den API-Routen kann hier ein kleiner PIN-Schutz als Middleware sitzen.
- * Beispiel: Header oder Cookie pruefen und bei falscher PIN mit 401 antworten.
+ * Beispiel: Header oder Cookie prüfen und bei falscher PIN mit 401 antworten.
  */
 
 function loadPagesConfig() {
   // Die Datei wird pro Anfrage frisch gelesen, damit Seiten ohne Server-Neustart
-  // angepasst werden koennen.
+  // angepasst werden können.
   const rawConfig = fs.readFileSync(PAGES_CONFIG_PATH, "utf8");
   return JSON.parse(rawConfig);
 }
@@ -42,7 +56,7 @@ function sendError(res, statusCode, message, details) {
 function runCommand(command, res, successMessage) {
   exec(command, (error, stdout, stderr) => {
     if (error) {
-      return sendError(res, 500, "Befehl konnte nicht ausgefuehrt werden.", {
+      return sendError(res, 500, "Befehl konnte nicht ausgeführt werden.", {
         command,
         error: error.message,
         stderr: stderr.trim()
@@ -56,19 +70,62 @@ function runCommand(command, res, successMessage) {
   });
 }
 
+function createGotoPayload(target) {
+  // MMM-Carousel akzeptiert Zahlen für Slide-Positionen und { slide: "Name" } für benannte Slides.
+  if (typeof target === "number") {
+    return target;
+  }
+
+  if (typeof target === "string" && target.trim() !== "" && !Number.isNaN(Number(target))) {
+    return Number(target);
+  }
+
+  return {
+    slide: target
+  };
+}
+
+function queueMagicMirrorNotification(notification, payload = {}) {
+  const command = {
+    notification,
+    payload,
+    createdAt: new Date().toISOString()
+  };
+
+  commandQueue.push(command);
+  console.log("[MMM-ControlCenterBridge queued]", command);
+}
+
 function sendCarouselCommand(action, payload = {}) {
   /*
-   * Hier wird spaeter die konkrete MagicMirror-/Carousel-Anbindung eingefuegt.
+   * Die eigentliche MagicMirror-Kommunikation passiert im Modul
+   * magicmirror-module/MMM-ControlCenterBridge.
    *
-   * Beispiele, je nach verwendetem Carousel-Modul:
-   * - HTTP-Request an ein MagicMirror-Remote-Modul
-   * - Socket-Notification an ein eigenes MagicMirror-Modul
-   * - Shell-Befehl oder lokales Script auf dem Raspberry Pi
-   *
-   * Diese Funktion ist der zentrale Erweiterungspunkt, damit die API-Endpunkte
-   * stabil bleiben, auch wenn die echte Carousel-Technik spaeter gewechselt wird.
+   * Der Express-Server legt nur Befehle in diese Queue. Das Bridge-Modul läuft
+   * innerhalb von MagicMirror, holt die Befehle ab und sendet dann die echten
+   * MMM-Carousel-Notifications.
    */
-  console.log("[Carousel placeholder]", action, payload);
+  switch (action) {
+    case "next":
+      queueMagicMirrorNotification("CAROUSEL_NEXT");
+      break;
+    case "prev":
+      queueMagicMirrorNotification("CAROUSEL_PREVIOUS");
+      break;
+    case "goToPage":
+      queueMagicMirrorNotification("CAROUSEL_GOTO", createGotoPayload(payload.target));
+      break;
+    case "pause":
+    case "start":
+      /*
+       * MMM-Carousel stellt laut installierter Version nur Toggle-Befehle bereit.
+       * CAROUSEL_PLAYPAUSE schaltet zwischen laufend und pausiert um.
+       */
+      queueMagicMirrorNotification("CAROUSEL_PLAYPAUSE");
+      break;
+    default:
+      console.warn("[MMM-ControlCenterBridge ignored unknown action]", action, payload);
+  }
 }
 
 app.get("/api/pages", (req, res) => {
@@ -81,9 +138,17 @@ app.get("/api/pages", (req, res) => {
   }
 });
 
+app.get("/api/bridge/commands/next", (req, res) => {
+  const command = commandQueue.shift() || null;
+
+  sendOk(res, command ? "Befehl abgeholt." : "Kein Befehl vorhanden.", {
+    command
+  });
+});
+
 app.post("/api/page/next", (req, res) => {
   sendCarouselCommand("next");
-  sendOk(res, "Naechste Seite angefordert.");
+  sendOk(res, "Nächste Seite angefordert.");
 });
 
 app.post("/api/page/prev", (req, res) => {
@@ -134,7 +199,7 @@ app.post("/api/carousel/start", (req, res) => {
 app.post("/api/system/restart-mirror", (req, res) => {
   /*
    * Erwartet eine PM2-App mit dem Namen "MagicMirror".
-   * Falls deine PM2-App anders heisst, passe den Befehl hier an.
+   * Falls deine PM2-App anders heißt, passe den Befehl hier an.
    */
   runCommand("pm2 restart MagicMirror", res, "MagicMirror-Neustart angefordert.");
 });
@@ -149,5 +214,5 @@ app.post("/api/system/reboot-pi", (req, res) => {
 });
 
 app.listen(PORT, "0.0.0.0", () => {
-  console.log(`MagicMirror ControlCenter laeuft auf Port ${PORT}`);
+  console.log(`MagicMirror ControlCenter läuft auf Port ${PORT}`);
 });

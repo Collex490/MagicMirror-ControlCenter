@@ -40,7 +40,7 @@ async function callEndpoint(endpoint, button) {
 }
 
 function createPageButton(pageId, page) {
-  // Die Seiten kommen aus config/pages.json und muessen nicht im HTML gepflegt werden.
+  // Die Seiten kommen aus config/pages.json und müssen nicht im HTML gepflegt werden.
   const button = document.createElement("button");
   const label = document.createElement("span");
 
@@ -55,7 +55,7 @@ function createPageButton(pageId, page) {
 
 async function loadPageButtons() {
   try {
-    // Beim Laden der Oberflaeche holt sich das Smartphone die aktuelle Seitenliste.
+    // Beim Laden der Oberfläche holt sich das Smartphone die aktuelle Seitenliste.
     const response = await fetch("/api/pages");
     const result = await response.json();
 
