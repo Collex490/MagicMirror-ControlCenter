@@ -1,16 +1,26 @@
 const statusElement = document.querySelector("#status");
 const pageButtonsElement = document.querySelector("#pageButtons");
+let statusResetTimer = null;
 
 function setStatus(message, type = "") {
   // Kurzes Feedback direkt auf dem Smartphone, damit man jeden Befehl sieht.
+  window.clearTimeout(statusResetTimer);
   statusElement.textContent = message;
   statusElement.className = `status ${type}`.trim();
+}
+
+function resetStatusAfterDelay() {
+  statusResetTimer = window.setTimeout(() => {
+    statusElement.textContent = "Bereit";
+    statusElement.className = "status";
+  }, 2500);
 }
 
 async function callEndpoint(endpoint, button) {
   const confirmationMessage = button.dataset.confirm;
 
   if (confirmationMessage && !window.confirm(confirmationMessage)) {
+    button.blur();
     return;
   }
 
@@ -32,10 +42,12 @@ async function callEndpoint(endpoint, button) {
     }
 
     setStatus(result.message, "success");
+    resetStatusAfterDelay();
   } catch (error) {
     setStatus(error.message, "error");
   } finally {
     button.classList.remove("loading");
+    button.blur();
   }
 }
 
