@@ -7,8 +7,9 @@ Module.register("MMM-ControlCenterBridge", {
 
   start() {
     this.timer = null;
+    this.lastCommandId = 0;
     this.fetchNextCommand = this.fetchNextCommand.bind(this);
-    this.schedulePolling();
+    this.initializeBridge();
   },
 
   getDom() {
@@ -20,15 +21,36 @@ Module.register("MMM-ControlCenterBridge", {
     this.timer = setInterval(this.fetchNextCommand, this.config.pollInterval);
   },
 
+  async initializeBridge() {
+    await this.syncLatestCommandId();
+    this.schedulePolling();
+  },
+
+  async syncLatestCommandId() {
+    try {
+      const response = await fetch(`${this.config.controlCenterUrl}/api/bridge/commands/latest`);
+      const result = await response.json();
+
+      if (result.ok && typeof result.latestId === "number") {
+        this.lastCommandId = result.latestId;
+      }
+    } catch (error) {
+      if (this.config.debug) {
+        Log.warn("MMM-ControlCenterBridge konnte die letzte Befehls-ID nicht laden:", error);
+      }
+    }
+  },
+
   async fetchNextCommand() {
     try {
-      const response = await fetch(`${this.config.controlCenterUrl}/api/bridge/commands/next`);
+      const response = await fetch(`${this.config.controlCenterUrl}/api/bridge/commands/next?after=${this.lastCommandId}`);
       const result = await response.json();
 
       if (!result.ok || !result.command) {
         return;
       }
 
+      this.lastCommandId = result.command.id || this.lastCommandId;
       this.sendCarouselNotification(result.command);
     } catch (error) {
       if (this.config.debug) {
