@@ -1,0 +1,26 @@
+{
+  "home": {
+    "label": "Home",
+    "carouselTarget": "home"
+  },
+  "weather": {
+    "label": "Wetter",
+    "carouselTarget": "weather"
+  },
+  "movies": {
+    "label": "Filme",
+    "carouselTarget": "movies"
+  },
+  "fuel": {
+    "label": "Tankpreise",
+    "carouselTarget": "fuel"
+  },
+  "comunio": {
+    "label": "Comunio",
+    "carouselTarget": "comunio"
+  },
+  "spotify": {
+    "label": "Spotify",
+    "carouselTarget": "spotify"
+  }
+}

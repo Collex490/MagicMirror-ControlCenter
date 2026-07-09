@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>MagicMirror ControlCenter</title>
+    <link rel="stylesheet" href="/style.css">
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="app-header">
+        <p class="eyebrow">MagicMirror</p>
+        <h1>ControlCenter</h1>
+        <p id="status" class="status">Bereit</p>
+      </header>
+
+      <section class="control-section" aria-label="Carousel Navigation">
+        <div class="button-grid two-columns">
+          <button class="control-button" data-endpoint="/api/page/prev">
+            <span>Vorherige Seite</span>
+          </button>
+          <button class="control-button" data-endpoint="/api/page/next">
+            <span>Naechste Seite</span>
+          </button>
+        </div>
+      </section>
+
+      <section class="control-section" aria-label="Direkte Seitenwahl">
+        <h2>Seiten</h2>
+        <div id="pageButtons" class="button-grid"></div>
+      </section>
+
+      <section class="control-section" aria-label="Carousel Steuerung">
+        <h2>Carousel</h2>
+        <div class="button-grid two-columns">
+          <button class="control-button secondary" data-endpoint="/api/carousel/pause">
+            <span>Carousel pausieren</span>
+          </button>
+          <button class="control-button secondary" data-endpoint="/api/carousel/start">
+            <span>Carousel starten</span>
+          </button>
+        </div>
+      </section>
+
+      <section class="control-section" aria-label="System Steuerung">
+        <h2>System</h2>
+        <div class="button-grid">
+          <button class="control-button warning" data-endpoint="/api/system/restart-mirror">
+            <span>MagicMirror neu starten</span>
+          </button>
+          <button class="control-button danger" data-endpoint="/api/system/reboot-pi" data-confirm="Raspberry Pi wirklich neu starten?">
+            <span>Raspberry Pi neu starten</span>
+          </button>
+        </div>
+      </section>
+
+      <footer class="app-footer">
+        <p>Nur fuer dein Heimnetz gedacht. Ein PIN-Schutz kann spaeter vor die API gelegt werden.</p>
+      </footer>
+    </main>
+
+    <script src="/app.js"></script>
+  </body>
+</html>
